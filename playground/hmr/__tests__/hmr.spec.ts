@@ -1070,9 +1070,18 @@ if (!isBuild) {
       .poll(() => page.textContent('.intermediate-file-delete-display'))
       .toMatch('count is 2')
 
-    // update import, hmr works
-    editFile('intermediate-file-delete/index.js', (code) =>
-      code.replace("from './re-export.js'", "from './display.js'"),
+    // update import, hmr works. Wait for the import change to be applied
+    // before editing display.js: otherwise the display.js update can be
+    // processed while it is still only reachable through re-export.js, which
+    // races with the module graph update and can trigger a full reload.
+    await untilBrowserLogAfter(
+      () =>
+        editFile('intermediate-file-delete/index.js', (code) =>
+          code.replace("from './re-export.js'", "from './display.js'"),
+        ),
+      isBundledDev
+        ? '[vite] hot updated: playground-temp/hmr/intermediate-file-delete/index.js'
+        : '[vite] hot updated: /intermediate-file-delete/index.js',
     )
     editFile('intermediate-file-delete/display.js', (code) =>
       code.replace('count is ${count}', 'count is ${count}!'),
